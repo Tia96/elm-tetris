@@ -59,19 +59,26 @@ type Msg
 
 initBoard : Board
 initBoard = 
-    Array.repeat 15 <| Array.fromList(Wall :: (List.repeat 9 Empty) :: Wall :: [])
+    Array.repeat 15 <| Array.fromList(Wall :: Empty :: Empty :: Empty :: Empty :: Empty :: Wall :: [])
 
+newMino : Mino
+newMino =
+    { topPos = {x = 3, y = 0}
+    , state = Moving
+    , type_ = T
+    }
 
-init : (Model, Cmd Msg)
-init = 
-    ({ 
-
+init : () -> (Model, Cmd Msg)
+init _ = 
+    ({ board = initBoard
+    , nowMino = newMino
+    , minos = []
     }, Cmd.none)
 
 minoPos : MinoType -> List(Pos)
 minoPos type_ =
     case type_ of
-        T -> [(0,0),(1,0),(2,0),(1,1)]
+        T -> [{x=0,y=0},{x=1,y=0},{x=2,y=0},{x=1,y=1}]
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -81,29 +88,24 @@ update msg model =
 
 replace : Pos -> Board -> Board
 replace {x, y} board =
-    Array.set y (Array.set x Block <| Array.get y board ) board
+    Array.set y (Array.set x Block <| Maybe.withDefault Array.empty  <| Array.get y board ) board
 
 putMinoToBoard : Board -> Mino -> Board
 putMinoToBoard board mino =
-    List.foldr (replace board) board getEachPos mino
+    --List.foldr (\pos b -> replace pos b) board (getEachPos mino)
+    List.foldr replace board (getEachPos mino)
 
 updateModel : Model -> Model
 updateModel model =
-    if isCollide <| moveMino Down model.nowMino == True then
+    if (isCollide model <| moveMino Down model.nowMino) == True then
        { model 
        | board = putMinoToBoard model.board model.nowMino
        , nowMino = newMino
-       , minos = model.minos ++ model.nowMino
+       , minos = model.nowMino :: model.minos
        }
     else
-        { model | nowMino = moveMino model.nowMino Down }
+        { model | nowMino = moveMino Down model.nowMino }
 
-newMino : Mino
-newMino =
-    { topPos = {x = 3, y = 0}
-    , state = Moving
-    , type_ = T
-    }
 
 {--
 updateState : Point -> CellState
@@ -112,7 +114,7 @@ updateState pos =
         upState = getState
     in
 --}
-moveMino : Mino -> Move -> Mino
+moveMino : Move -> Mino -> Mino
 moveMino move mino =
     case move of
         Down -> {mino | topPos = down mino.topPos}
@@ -128,20 +130,28 @@ right {x, y} = {x = x+1, y = y}
 left : Pos -> Pos
 left {x, y} = {x = x-1, y = y}
 
+addPos : Pos -> Pos -> Pos
+addPos pos1 pos2 =
+    { x = pos1.x + pos2.x, y = pos1.y + pos2.y }
+
 getEachPos : Mino -> List Pos
 getEachPos mino =
-    List.map (+) mino.topPos (minoPos mino.type_)
+    List.map (addPos mino.topPos) (minoPos mino.type_)
 
 isCollide : Model -> Mino -> Bool
 isCollide model mino =
     List.map (\pos -> getState pos model) (getEachPos mino)
     |> List.filter ((/=) Empty)
-    |> List.length > 0
+    |> List.length
+    |> (>) 0
 
 getState : Pos -> Model -> CellState
 getState pos model =
-    Array.get pos.y model.board
-    |> Array.get pos.x
+    Maybe.andThen (
+        Array.get pos.y model.board
+        |> Array.get pos.x
+        |> Maybe.andThen Block
+    )
 
 --minoToCell : Pos -> Mino -> List Pos
 
