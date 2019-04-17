@@ -59,7 +59,7 @@ type Msg
 
 initBoard : Board
 initBoard = 
-    Array.repeat 15 <| Array.fromList(1::2::3::[])
+    Array.repeat 15 <| Array.fromList(Wall :: (List.repeat 9 Empty) :: Wall :: [])
 
 
 init : (Model, Cmd Msg)
